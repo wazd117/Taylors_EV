@@ -1,0 +1,176 @@
+{
+  "selected_model": "Decision Tree",
+  "selection_rule": "Highest 5-fold training-only stratified CV macro F1 (test set not used for selection)",
+  "seed": 42,
+  "input_data": "cleaned_ev_dataset.csv (provided by Task 1 group member; preserved unchanged)",
+  "input_file_sha256": "f04c4792b1fa565fd6599e9896d23d7839397905ceffc412170d01c943f02922",
+  "engineered_only_in_memory": [
+    "Power_kW",
+    "Charging_Efficiency_Group"
+  ],
+  "n_total": 1200,
+  "n_train": 960,
+  "n_test": 240,
+  "classes": [
+    "Normal",
+    "Grid_Surge",
+    "Overheated"
+  ],
+  "train_distribution": {
+    "Normal": 718,
+    "Grid_Surge": 138,
+    "Overheated": 104
+  },
+  "test_distribution": {
+    "Normal": 180,
+    "Grid_Surge": 34,
+    "Overheated": 26
+  },
+  "numeric_features": [
+    "Start_Hour",
+    "Duration_Mins",
+    "Energy_kWh",
+    "Overstay_Mins",
+    "Battery_Temp_C",
+    "Peak_Hour_Flag",
+    "Power_kW"
+  ],
+  "categorical_features": [
+    "Charger_Type",
+    "User_Type",
+    "Charging_Efficiency_Group"
+  ],
+  "excluded_from_features": [
+    "Session_ID",
+    "Grid_Status_Label"
+  ],
+  "candidates": {
+    "Decision Tree": {
+      "accuracy": 0.8666666666666667,
+      "precision_macro": 0.8111879160266257,
+      "recall_macro": 0.7896514161220044,
+      "f1_macro": 0.7988130912509548,
+      "f1_weighted": 0.8613079499383043,
+      "train_f1_macro": 0.8981388430425657,
+      "cv_f1_macro_mean": 0.7701232383759902,
+      "cv_f1_macro_std": 0.04714488017088236,
+      "per_class": {
+        "Normal": {
+          "precision": 0.8978494623655914,
+          "recall": 0.9277777777777778,
+          "f1-score": 0.912568306010929,
+          "support": 180.0
+        },
+        "Grid_Surge": {
+          "precision": 0.5357142857142857,
+          "recall": 0.4411764705882353,
+          "f1-score": 0.4838709677419355,
+          "support": 34.0
+        },
+        "Overheated": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 26.0
+        },
+        "accuracy": 0.8666666666666667,
+        "macro avg": {
+          "precision": 0.8111879160266257,
+          "recall": 0.7896514161220044,
+          "f1-score": 0.7988130912509548,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 0.857613287250384,
+          "recall": 0.8666666666666667,
+          "f1-score": 0.8613079499383043,
+          "support": 240.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          167,
+          13,
+          0
+        ],
+        [
+          19,
+          15,
+          0
+        ],
+        [
+          0,
+          0,
+          26
+        ]
+      ]
+    },
+    "Random Forest": {
+      "accuracy": 0.8625,
+      "precision_macro": 0.8010796221322537,
+      "recall_macro": 0.7480392156862745,
+      "f1_macro": 0.7631194968553459,
+      "f1_weighted": 0.8457924528301887,
+      "train_f1_macro": 0.9792288466671519,
+      "cv_f1_macro_mean": 0.7233906541114103,
+      "cv_f1_macro_std": 0.03624109948950272,
+      "per_class": {
+        "Normal": {
+          "precision": 0.8769230769230769,
+          "recall": 0.95,
+          "f1-score": 0.912,
+          "support": 180.0
+        },
+        "Grid_Surge": {
+          "precision": 0.5263157894736842,
+          "recall": 0.29411764705882354,
+          "f1-score": 0.37735849056603776,
+          "support": 34.0
+        },
+        "Overheated": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 26.0
+        },
+        "accuracy": 0.8625,
+        "macro avg": {
+          "precision": 0.8010796221322537,
+          "recall": 0.7480392156862745,
+          "f1-score": 0.7631194968553459,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 0.8405870445344129,
+          "recall": 0.8625,
+          "f1-score": 0.8457924528301887,
+          "support": 240.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          171,
+          9,
+          0
+        ],
+        [
+          24,
+          10,
+          0
+        ],
+        [
+          0,
+          0,
+          26
+        ]
+      ]
+    }
+  },
+  "caveats": [
+    "The raw CSV names the location-temperature field Battery_Temp_C; Task 1 exports it as Ambient_Temp_C per the data owner's clarification. The model helper maps it to the saved feature name Battery_Temp_C.",
+    "Power_kW and Charging_Efficiency_Group are derived from Energy_kWh and Duration_Mins.",
+    "Task 1 median imputation was performed by the group before this stage and may cause mild cross-split leakage; model preprocessing itself is fit only on training folds.",
+    "One holdout split cannot establish generalization to new chargers, semesters, or sites.",
+    "Model predicts labels found in historical data; it is not a safety-critical control system."
+  ]
+}
