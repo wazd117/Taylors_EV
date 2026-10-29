@@ -1,6 +1,7 @@
 """EV charging operations portal for the ITS72604 Task 3 assessment."""
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
@@ -16,10 +17,11 @@ DATA_PATH = ROOT / "cleaned_ev_dataset.csv"
 MODEL_PATH = ROOT / "ev_model.pkl"
 STATUS_ORDER = ["Normal", "Grid_Surge", "Overheated"]
 STATUS_PALETTE = {
-    "Normal": "#16a37a",
-    "Grid_Surge": "#e9a23b",
-    "Overheated": "#dc5b63",
+    "Normal": "#029456",
+    "Grid_Surge": "#F9D779",
+    "Overheated": "#D8226C",
 }
+CHART_COLORS = ["#D8226C", "#029456", "#F9D779", "#005BB3"]
 
 st.set_page_config(
     page_title="Volt | EV Charging Intelligence",
@@ -30,30 +32,37 @@ st.set_page_config(
 
 
 def apply_theme() -> None:
-    st.markdown(
+    st.html(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-        :root { --ink:#182b3a; --muted:#70818d; --teal:#087f78; --line:#e5eceb; }
-        html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
-        .stApp { background:linear-gradient(180deg,#f5faf9 0%,#f7f9fb 38%,#f7f9fb 100%); color:var(--ink); }
-        h1,h2,h3 { font-family:'Manrope',sans-serif; letter-spacing:-.035em; color:var(--ink); }
-        h1 { font-size:2rem !important; font-weight:800 !important; }
-        [data-testid="stSidebar"] { background:#102d36; }
-        [data-testid="stSidebar"] * { color:#eef8f6; }
-        [data-testid="stSidebar"] input, [data-testid="stSidebar"] [data-baseweb="select"] * { color:#182b3a; }
-        [data-testid="stSidebar"] [data-testid="stMetricValue"] { color:#eef8f6; }
-        [data-testid="stMetric"] { background:white; border:1px solid var(--line); border-radius:16px; padding:17px 20px; box-shadow:0 5px 20px #102d3608; }
-        [data-testid="stMetricLabel"] { color:#6d7d87; font-weight:600; }
-        [data-testid="stMetricValue"] { color:var(--ink); font-family:'Manrope',sans-serif; font-weight:800; }
-        [data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-        div[data-testid="stPlotlyChart"], .stAlert { border-radius:14px; }
-        .eyebrow { color:var(--teal); font-weight:700; font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; margin-bottom:.3rem; }
-        .subhead { color:var(--muted); margin-top:-.7rem; margin-bottom:1.4rem; }
-        .footnote { color:#7a8a93; font-size:.82rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap');
+        html, body, [class*="st-"] { font-family: "Figtree", sans-serif !important; }
+        .eyebrow { color:#326080; font-weight:700; font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; margin-bottom:.3rem; }
+        .subhead { color:#617382; margin-top:-.7rem; margin-bottom:1.4rem; }
+        [data-testid="stSidebarNav"] a[aria-current="page"] { background:#005BB3 !important; color:#fff !important; border-radius:10px; }
+        [data-testid="stSidebarNav"] a[aria-current="page"] span { color:#fff !important; }
+        [data-testid="stMetric"] { background:#fffaf6; border:1px solid #ead8cb; border-radius:16px; padding:17px 20px; box-shadow:0 5px 20px #102d3608; }
+        [data-testid="stMetricLabel"] { color:#617382; font-weight:600; }
+        [data-testid="stDataFrame"] { border:1px solid #ead8cb; border-radius:12px; overflow:hidden; }
+        .footnote { color:#617382; font-size:.82rem; }
+        .about-footer { margin-top:1.8rem; padding:.85rem 1.15rem; border-radius:12px; background:#05070a; color:#f4f7fa; }
+        .about-footer h2, .about-footer p { color:#f4f7fa; }
+        .about-footer h2 { margin:.05rem 0 .55rem; font-size:1.05rem; }
+        .about-kicker { color:#F9D779; font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+        .about-team { display:flex; flex-wrap:wrap; gap:.8rem 1.5rem; align-items:flex-start; }
+        .team-group { display:flex; flex-direction:column; gap:.28rem; }
+        .about-role { color:#c5d1d9 !important; font-size:12pt; font-weight:700; margin:0; }
+        .about-name { display:inline-flex; align-items:center; gap:.32rem; color:#f4f7fa !important; font-size:12pt; font-weight:500; line-height:1.2; text-decoration:none !important; }
+        .about-name.leader-link { color:#005BB3 !important; }
+        .about-name:hover { text-decoration:underline !important; }
+        .github-logo { width:.82rem; height:.82rem; object-fit:contain; filter:invert(1); flex:none; }
+        .st-key-inference-metrics [data-testid="stMetricLabel"],
+        .st-key-dashboard-metrics [data-testid="stMetricLabel"] { font-weight:800 !important; }
+        .st-key-inference-metrics [data-testid="stMetricValue"],
+        .st-key-dashboard-metrics [data-testid="stMetricValue"] { font-size:1.15rem !important; }
+        @media (max-width:650px) { .about-team { gap:.7rem 1rem; } }
         </style>
         """,
-        unsafe_allow_html=True,
     )
 
 
@@ -80,6 +89,31 @@ def page_heading(kicker: str, title: str, description: str) -> None:
     st.markdown(f'<div class="eyebrow">{kicker}</div>', unsafe_allow_html=True)
     st.title(title)
     st.markdown(f'<div class="subhead">{description}</div>', unsafe_allow_html=True)
+
+
+def render_our_team() -> None:
+    logo_path = ROOT / "github-logo.png"
+    logo_data = base64.b64encode(logo_path.read_bytes()).decode("ascii") if logo_path.is_file() else ""
+    logo = f'<img class="github-logo" src="data:image/png;base64,{logo_data}" alt="GitHub">' if logo_data else ""
+    st.html(
+        f"""
+        <section class="about-footer" aria-labelledby="our-team-heading">
+          <h2 id="our-team-heading">Our team</h2>
+          <div class="about-team">
+            <div class="team-group">
+              <p class="about-role">Group Leader</p>
+              <a class="about-name leader-link" href="https://github.com/wazd117" target="_blank" rel="noopener noreferrer">{logo}<span>Li Zhengyuyang</span></a>
+            </div>
+            <div class="team-group">
+              <p class="about-role">Group Member</p>
+              <a class="about-name" href="https://github.com/mahmudmasum242-tech" target="_blank" rel="noopener noreferrer">{logo}<span>Masum Mahmud</span></a>
+              <a class="about-name" href="https://github.com/1054441617-png" target="_blank" rel="noopener noreferrer">{logo}<span>Jie Jao</span></a>
+            </div>
+          </div>
+        </section>
+        """,
+        width="stretch",
+    )
 
 
 def shared_filters(data: pd.DataFrame) -> tuple[pd.DataFrame, float]:
@@ -124,22 +158,24 @@ def dashboard() -> None:
         st.stop()
     filtered, rate = shared_filters(data)
     page_heading(
-        "Operations overview", "Charging network at a glance",
+        "Operations overview", "Executive KPI dashboard",
         "A live view of the supplied charging-session history. Use the sidebar to focus the network.",
     )
     if filtered.empty:
         st.warning("No sessions match these filters. Adjust the sidebar selections to continue.")
+        render_our_team()
         return
 
     peak = filtered[filtered["Peak_Hour_Flag"].eq(1)]
     delivered = float(filtered["Energy_kWh"].sum())
     duration = float(filtered["Duration_Mins"].mean())
     peak_revenue = float(peak["Energy_kWh"].sum() * rate)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Energy delivered", f"{delivered:,.0f} kWh", help="Sum of delivered session energy.")
-    c2.metric("Avg. session duration", f"{duration:,.0f} min", help="Mean charging-session duration.")
-    c3.metric("Peak revenue · estimate", f"${peak_revenue:,.0f}", help=f"Peak energy × estimated tariff of ${rate:.2f}/kWh.")
-    c4.metric("Sessions in view", f"{len(filtered):,}", help="Sessions matching the current filters.")
+    with st.container(key="dashboard-metrics"):
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Energy delivered", f"{delivered:,.0f} kWh", help="Sum of delivered session energy.")
+        c2.metric("Avg. session duration", f"{duration:,.0f} min", help="Mean charging-session duration.")
+        c3.metric("Peak revenue · estimate", f"${peak_revenue:,.0f}", help=f"Peak energy × estimated tariff of ${rate:.2f}/kWh.")
+        c4.metric("Sessions in view", f"{len(filtered):,}", help="Sessions matching the current filters.")
 
     left, right = st.columns([1.35, 1])
     with left:
@@ -153,7 +189,7 @@ def dashboard() -> None:
         ax.grid(axis="y", alpha=.2)
         ax.set_axisbelow(True)
         fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch", alt="Session counts by grid status for the filtered charging sessions.")
         plt.close(fig)
     with right:
         st.subheader("Peak and off-peak energy")
@@ -162,13 +198,13 @@ def dashboard() -> None:
         ).groupby("Window", observed=False)["Energy_kWh"].sum().reindex(["Peak", "Off-peak"], fill_value=0)
         fig, ax = plt.subplots(figsize=(5.4, 3.4))
         sns.barplot(x=buckets.index, y=buckets.values, hue=buckets.index,
-                    palette={"Peak": "#087f78", "Off-peak": "#9bc8c3"}, legend=False, ax=ax)
+                    palette={"Peak": "#005BB3", "Off-peak": "#F9D779"}, legend=False, ax=ax)
         ax.set(xlabel="", ylabel="Energy (kWh)")
         ax.spines[["top", "right", "left"]].set_visible(False)
         ax.grid(axis="y", alpha=.2)
         ax.set_axisbelow(True)
         fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch", alt="Total energy delivered during peak and off-peak periods.")
         plt.close(fig)
 
     st.subheader("Filtered charging sessions")
@@ -183,11 +219,12 @@ def dashboard() -> None:
         "Energy_kWh": "Energy (kWh)", temperature_column: "Ambient temp (°C)",
         "Grid_Status_Label": "Grid status",
     })
-    st.dataframe(table, use_container_width=True, hide_index=True, height=390)
+    st.dataframe(table, width="stretch", hide_index=True, height=390)
     st.markdown(
         '<div class="footnote">Revenue is an estimate based on the adjustable tariff; the source data do not include transaction prices.</div>',
         unsafe_allow_html=True,
     )
+    render_our_team()
 
 
 def analytics() -> None:
@@ -199,11 +236,12 @@ def analytics() -> None:
         st.stop()
     filtered, _ = shared_filters(data)
     page_heading(
-        "Visual analytics studio", "Find patterns in charging activity",
+        "Visual analytics studio", "Visual analytics studio",
         "Explore relationships between location temperature, energy, time-of-day and charger mix.",
     )
     if filtered.empty:
         st.warning("No sessions match these filters. Adjust the sidebar selections to continue.")
+        render_our_team()
         return
 
     view = st.selectbox(
@@ -212,7 +250,7 @@ def analytics() -> None:
     )
     if view == "Energy vs ambient temperature":
         temperature_column = "Ambient_Temp_C" if "Ambient_Temp_C" in filtered.columns else "Battery_Temp_C"
-        st.caption("The source field is treated as charging-location ambient temperature per the project data definition.")
+        st.write("Each point represents one session. The chart compares location temperature with delivered energy; color identifies the session's grid-status label. The sidebar filters limit which sessions appear.")
         fig, ax = plt.subplots(figsize=(10, 5.3))
         sns.scatterplot(
             data=filtered, x=temperature_column, y="Energy_kWh", hue="Grid_Status_Label",
@@ -223,10 +261,11 @@ def analytics() -> None:
         ax.grid(alpha=.18)
         ax.legend(title="Grid status", frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(.5, 1.12))
         fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch", alt="Scatter plot comparing charging-location ambient temperature and energy delivered, colored by grid status.")
         plt.close(fig)
     elif view == "Peak vs off-peak comparison":
-        measure = st.radio("Compare by", ["Energy delivered", "Session count", "Average duration"], horizontal=True)
+        st.write("The bars compare peak sessions (12:00–16:59) with off-peak sessions. Colors separate grid-status classes; choose whether bar height represents energy, session count, or average duration.")
+        measure = st.segmented_control("Compare by", ["Energy delivered", "Session count", "Average duration"], default="Energy delivered")
         metric_column = {"Energy delivered": "Energy_kWh", "Average duration": "Duration_Mins"}.get(measure)
         windowed = filtered.assign(
             Window=filtered["Peak_Hour_Flag"].map({1: "Peak", 0: "Off-peak"})
@@ -246,12 +285,13 @@ def analytics() -> None:
         ax.set_axisbelow(True)
         ax.legend(title="Grid status", frameon=False)
         fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch", alt=f"{ylabel} comparison between peak and off-peak sessions, split by grid status.")
         plt.close(fig)
     else:
+        st.write("This chart shows the number of filtered sessions for each charger type. Use the sidebar to compare charger mix for selected users or grid statuses.")
         counts = filtered["Charger_Type"].value_counts().reindex(sorted(data["Charger_Type"].unique()), fill_value=0)
         fig, ax = plt.subplots(figsize=(8, 4.7))
-        colors = ["#087f78", "#68aaa4", "#b5d8d4"]
+        colors = CHART_COLORS
         bars = ax.bar(counts.index, counts.values, color=colors[:len(counts)], width=.56)
         ax.bar_label(bars, padding=5, color="#52656e", fontweight="semibold")
         ax.set(xlabel="Charger type", ylabel="Sessions")
@@ -259,39 +299,37 @@ def analytics() -> None:
         ax.grid(axis="y", alpha=.18)
         ax.set_axisbelow(True)
         fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch", alt="Counts of filtered charging sessions by charger type.")
         plt.close(fig)
 
-    with st.expander("How to read these charts"):
-        st.write(
-            "All charts use the active sidebar filters. Peak hours follow the supplied definition "
-            "(12:00–16:59). The cleaned dataset labels the source temperature as ambient temperature, "
-            "Power-rate bands are derived proxies and are not measured conversion efficiency."
-        )
+    st.caption("All charts use the active sidebar filters. Peak hours follow the 12:00–16:59 definition.")
+    render_our_team()
 
 
 def inference() -> None:
     apply_theme()
     page_heading(
-        "Live machine learning", "Grid status inference",
+        "Live machine learning", "Live ML inference",
         "Enter a charging session to score it with the saved T2 preprocessing and classification pipeline.",
     )
     st.sidebar.markdown("### Charging session")
     charger_type = st.sidebar.selectbox("Charger type", ["AC", "DC"], index=1)
     user_type = st.sidebar.selectbox("User type", ["Student", "Staff", "Visitor"])
     start_hour = st.sidebar.number_input("Start hour", min_value=0, max_value=23, value=17, step=1)
-    duration = st.sidebar.number_input("Duration (minutes)", min_value=15.0, max_value=300.0, value=60.0, step=5.0)
-    energy = st.sidebar.number_input("Energy delivered (kWh)", min_value=5.0, max_value=120.0, value=18.0, step=0.5)
-    temperature = st.sidebar.slider("Ambient temperature (°C)", min_value=24.0, max_value=42.0, value=35.5, step=0.5)
+    duration = st.sidebar.number_input("Duration (minutes)", min_value=1.0, max_value=1440.0, value=60.0, step=5.0)
+    energy = st.sidebar.number_input("Energy delivered (kWh)", min_value=0.0, max_value=250.0, value=18.0, step=0.5)
+    temperature = st.sidebar.slider("Ambient temperature (°C)", min_value=-10.0, max_value=100.0, value=35.5, step=0.5)
     overstay = st.sidebar.slider("Overstay (minutes)", min_value=0, max_value=240, value=5, step=1)
 
     a, b = st.columns([1.25, 1])
     with a:
         st.subheader("Session profile")
         m1, m2, m3 = st.columns(3)
-        m1.metric("Charging power", f"{energy / (duration / 60):.1f} kW")
-        m2.metric("Time window", "Peak" if 12 <= start_hour < 17 else "Off-peak")
-        m3.metric("Charger", charger_type)
+        with st.container(key="inference-metrics"):
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Charging power", f"{energy / (duration / 60):.1f} kW")
+            m2.metric("Time window", "Peak" if 12 <= start_hour < 17 else "Off-peak")
+            m3.metric("Charger", charger_type)
         st.markdown("#### Inputs submitted to the model")
         st.dataframe(pd.DataFrame([{
             "User type": user_type, "Start hour": int(start_hour), "Duration (min)": duration,
@@ -343,6 +381,7 @@ def inference() -> None:
         '<div class="footnote">Decision support only. This model predicts historical labels and is not a safety-critical control system.</div>',
         unsafe_allow_html=True,
     )
+    render_our_team()
 
 
 def main() -> None:

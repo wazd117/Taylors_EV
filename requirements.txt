@@ -1,5 +1,5 @@
 # Match the environment used to serialize ev_model.pkl. For cloud choose Python 3.13.
-streamlit>=1.40,<2
+streamlit>=1.66,<2
 pandas==2.2.3
 numpy==2.3.5
 matplotlib==3.10.8

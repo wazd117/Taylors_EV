@@ -1,0 +1,9 @@
+# Match the environment used to serialize ev_model.pkl. For cloud choose Python 3.13.
+streamlit>=1.66,<2
+pandas==2.2.3
+numpy==2.3.5
+matplotlib==3.10.8
+seaborn==0.13.2
+# Required to import and deserialize the Pipeline in ev_model.pkl for live inference.
+scikit-learn==1.8.0
+joblib==1.5.3
